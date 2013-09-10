@@ -31,13 +31,25 @@ $.each({
 
     removeTagId: function(field_id,id){
         field = $('#'+field_id);
-        var obj = $.parseJSON(field.val());
+        var arr = field.val().split('-');
 
-        for(i in obj){
-            if (i == id) delete obj[i];
+        var new_arr = [];
+        for(i in arr){
+            if (arr[i] == id) {
+                delete arr[i];
+            } else {
+                new_arr[arr[i]] = arr[i];
+            }
         }
 
-        field.val($.univ.toJSON(obj));
+        var new_str = '';
+        var count = 0;
+        for (i in new_arr) {
+            if (count !== 0) new_str = new_str + '-';
+            new_str = new_str + i;
+            count++;
+        }
+        field.val(new_str);
     },
 
     addTag: function(field_id,tag_obj){

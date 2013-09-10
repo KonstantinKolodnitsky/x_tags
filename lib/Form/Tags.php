@@ -30,7 +30,7 @@ class Form_Tags extends \Form {
                })"),
         ));
 
-        $this->tags_list = $this->addField('hidden','tags');
+        $this->tags_list = $this->addField('Hidden','tags');
 
         $tag_f = $this->addField('x_tags/createnew','add_tag');
         $tag_f->setModel('x_tags/Tag');
@@ -148,6 +148,7 @@ class Form_Tags extends \Form {
 }
 
 class Form_Field_createnew extends \autocomplete\Form_Field_Basic {
+    public $hint = 'search or add';
 	function init(){
 		parent::init();
         $name = preg_replace('/_id$/','',$this->short_name);

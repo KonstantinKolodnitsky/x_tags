@@ -21,13 +21,13 @@ class Lister_Tags extends \CompleteLister {
     function formatRow() {
         parent::formatRow();
 
-        if ($this->form) {
+        if ($this->form) {var_dump('|this form|');
             $form_js = $this->js()->x_tags()->removeTagId($this->form->tags_list->name,$this->current_row['id']);
         } else {
             $form_js = '';
         }
 
-        if ($this->form && $this->form->connected_form){
+        if ($this->form && $this->form->connected_form){var_dump('|this con form|');
             $b = $this->add('View','edit_b_'.$this->current_row['id'])->set('X')->addClass('delete_tag')->addClass('ui-corner-all');
             $b->js('click',array(
                 $b->js()->closest('li')->remove(),
