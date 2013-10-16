@@ -32,8 +32,8 @@ class Form_Tags extends \Form {
 
         $this->tags_list = $this->addField('Hidden','tags');
 
-        $tag_f = $this->addField('x_tags/createnew','add_tag');
-        $tag_f->setModel('x_tags/Tag');
+        $this->tag_f = $this->addField('x_tags/createnew','add_tag');
+        $this->tag_f->setModel('x_tags/Tag');
 
         $this->addSubmit('Add Tag');
 
@@ -104,6 +104,7 @@ class Form_Tags extends \Form {
         }
 
         $this->return_js[] = $this->js()->atk4_form('setFieldValue',$this->tags_list->short_name,$this->string_unique($new_value,'-'));
+        $this->return_js[] = $this->js()->atk4_form('setFieldValue',$this->tag_f->short_name.'_4','');
         $this->return_js[] = $this->l->js()->trigger('reload');
         $this->js(null,$this->return_js)->execute();
     }
@@ -152,7 +153,7 @@ class Form_Field_createnew extends \autocomplete\Form_Field_Basic {
 	function init(){
 		parent::init();
         $name = preg_replace('/_id$/','',$this->short_name);
-        $this->other_hidden_field = $this->owner->addField('hidden',$name.'_hidden');
+        $this->other_hidden_field = $this->owner->addField('Hidden',$name.'_hidden');
         $this->other_field->js('change',$this->other_hidden_field->js()->val($this->other_field->js()->val()));
         $this->owner->js('submit',$this->other_hidden_field->js()->val(''));
 	}
