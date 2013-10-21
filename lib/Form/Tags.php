@@ -32,10 +32,10 @@ class Form_Tags extends \Form {
 
         $this->tags_list = $this->addField('Hidden','tags');
 
-        $this->tag_f = $this->addField('x_tags/createnew','add_tag');
+        $this->tag_f = $this->addField('x_tags/createnew','add_tag','Add #Tag');
         $this->tag_f->setModel('x_tags/Tag');
 
-        $this->addSubmit('Add Tag');
+        $this->addSubmit('Add #Tag');
 
         if (!$this->owner->template->hasTag('tags_lister')) throw $this->exception('Add tag "tags_lister" to view');
         $this->l = $this->owner->add('x_tags\Lister_Tags',array('form'=>$this),'tags_lister');
