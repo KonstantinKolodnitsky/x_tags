@@ -13,30 +13,119 @@ class Form_Tags extends \Form {
     function init() {
         parent::init();
 
-        /*
-         *
-         */
+        // check required field
         if (!$this->connected_form->hasElement('tags')) throw $this->exception('Main (connected) form must have "tags" field!');
-        $this->tags_name_list = $this->connected_form->getElement('tags');
-        $this->tags_name_list->js(true)->closest('.atk-form-row')->hide();
-        $this->connected_form->js('get_tags',array(
-            $this->js(null,
-                " $('#".$this->tags_name_list->name."').val('');
-                $('.main-tag-lister .".$this->name."').each( function(i,el) {
-                    if (i==0) {comma = ''} else {comma = ','};
-                    $('#".$this->tags_name_list->name."').val(
-                        $('#".$this->tags_name_list->name."').val() + comma + $(this).text()
-                    );
-               })"),
-        ));
+
+        $this->tags_name_list = $this->findTagFieldInConnectedForm();
+        $this->connectedTagsFieldTrigger($this->connected_form,$this->tags_name_list);
 
         $this->tags_list = $this->addField('Hidden','tags');
 
-        $this->tag_f = $this->addField('x_tags/createnew','add_tag','Add #Tag');
+        $this->tag_f = $this->addField('x_tags/createnew','add_tag','Add Tag #');
         $this->tag_f->setModel('x_tags/Tag');
 
-        $this->addSubmit('Add #Tag');
+        $this->addSubmit('Add Tag');
 
+        $this->addLister($this->tags_list);
+
+        $this->onSubmit(array($this,'checkFormSubmit'));
+    }
+    function checkFormSubmit() {//var_dump($this->get());exit('<hr>');
+        /*
+         *  All tags in database will be separated by comma,
+         *  so we will not let users to use comma in tag name.
+         */
+        $tag = $this->deleteHashtagSymbol($this->get('add_tag_hidden'));
+        $this->set('add_tag_hidden',str_replace(array(',',' '),array('',''),$tag));
+
+        $this->return_js = array();
+
+        // if tag was found in database by autocomplete field
+        if ($this->get('add_tag')!='') {
+            // put ids into hidden field
+            $new_value = $this->mergeIdsInHiddenField($this->get('add_tag'));
+        }
+        // if tag was not found and we have new tag
+        else if ($this->get('add_tag')=='' && $this->get('add_tag_hidden')!='') {
+            // create new tag in DB
+            $test_m = $this->findOrCreateTag($this->get('add_tag_hidden'));
+            // put ids into hidden field
+            $new_value = $this->mergeIdsInHiddenField($test_m->get('id'));
+        }
+        // we didn't get information from user so just return existing list of ids
+        else {
+            $new_value = $this->mergeIdsInHiddenField();
+        }
+
+        $this->return_js[] = $this->js()->atk4_form('setFieldValue',$this->tags_list->short_name,$this->string_unique($new_value));
+        $this->return_js[] = $this->js()->atk4_form('setFieldValue',$this->tag_f->short_name,'');
+        $this->return_js[] = $this->js()->atk4_form('setFieldValue',$this->tag_f->short_name.'_4','');
+        $this->return_js[] = $this->l->js()->trigger('reload');
+        $this->js(null,$this->return_js)->execute();
+    }
+    public $separator = ',';
+    private function mergeIdsInHiddenField($new_id=null) {
+        if (is_null($new_id)) return $this->tags_list->get();
+        return ($this->tags_list->get()=='')?$new_id:$this->tags_list->get().$this->separator.$new_id;
+    }
+    private function deleteHashtagSymbol($tag){
+        while(strpos($tag, '#') === 0) $tag = substr($tag, 1);
+        return $tag;
+    }
+    private function findOrCreateTag($tag) {
+        $test_m = $this->add('x_tags/Model_Tag');
+        $test_m->addCondition('value',$tag);
+        $test_m->tryLoadAny();
+        if (!$test_m->loaded()) {
+            $test_m
+                ->set('value',$tag)
+                ->set('user_id',$this->api->auth->model->id)
+            ->save();
+            //$this->return_js[] = $this->js()->univ()->successMessage('Tag was added to your personal set of tags');
+        }
+        return $test_m;
+    }
+    private function string_unique($str) {
+        /*
+         *  Just to avoid duplicated tags
+         */
+        return implode($this->separator,array_unique(explode($this->separator,$str)));
+    }
+    function render(){
+   		$this->js(true)
+   			->_load('x_tags')
+   			->_css('x_tags');
+
+   		return parent::render();
+   	}
+    function defaultTemplate() {
+		// add add-on locations to pathfinder
+		$l = $this->api->locate('addons',__NAMESPACE__,'location');
+		$addon_location = $this->api->locate('addons',__NAMESPACE__);
+		$this->api->pathfinder->addLocation($addon_location,array(
+			'js'=>'templates/js',
+			'css'=>'templates/css',
+            'template'=>'templates',
+		))->setParent($l);
+
+        return parent::defaultTemplate();
+    }
+
+    private function findTagFieldInConnectedForm() {
+        $tags_name_list = $this->connected_form->getElement('tags');
+        //$tags_name_list->js(true)->closest('.atk-form-row')->hide();
+        return $tags_name_list;
+    }
+    private function connectedTagsFieldTrigger($connected_form,$tags_name_list) {
+        $field = $tags_name_list->name;
+        $connected_form->js('get_tags',array(
+            $this->js()->x_tags()->populateConnectedTagsField($field,$this->name),
+        ));
+    }
+    public $l;
+    private function addLister($field) {
+
+        // check required lister tag
         if (!$this->owner->template->hasTag('tags_lister')) throw $this->exception('Add tag "tags_lister" to view');
         $this->l = $this->owner->add('x_tags\Lister_Tags',array('form'=>$this),'tags_lister');
 
@@ -50,7 +139,7 @@ class Form_Tags extends \Form {
         // if form was submitted
         if ($_GET['tags_list']!='') {
             $t_m = $this->add('x_tags/Model_Tag');//->debug();
-            $tag_arr = explode('-',$_GET['tags_list']);
+            $tag_arr = explode($this->separator,$_GET['tags_list']);
             $where = array();
             foreach ($tag_arr as $ta) {
                 $where[] = array('id',$ta);
@@ -72,7 +161,7 @@ class Form_Tags extends \Form {
                 $count++;
             }
             $this->l->setSource($tag_arr,'value');
-            $this->tags_list->set(implode('-',$tag_id_arr));
+            $field->set(implode($this->separator,$tag_id_arr));
         }
         // just a new form
         else {
@@ -80,76 +169,9 @@ class Form_Tags extends \Form {
         }
         $this->l->js('reload')->_fn('atk4_reload',array(
             $this->api->url(null,array('cut_object'=>$this->l->name)),
-            array('tags_list'=>$this->tags_list->js()->val()),
+            array('tags_list'=>$field->js()->val()),
             null
         ));
-
-        $this->onSubmit(array($this,'checkFormSubmit'));
-    }
-    function checkFormSubmit() {//var_dump($this->get());//exit('<hr>');
-        /*
-         *  All tags in database will be separated by comma,
-         *  so we will not let users to use comma in tag name.
-         */
-        $tag = $this->deleteHashtagSymbol($this->get('add_tag_hidden'));
-        $this->set('add_tag_hidden',str_replace(array(',',' '),array('',''),$tag));
-
-        $this->return_js = array();
-        if ($this->get('add_tag')!='') {
-            $new_value = ($this->tags_list->get()=='')?$this->get('add_tag'):$this->tags_list->get().'-'.$this->get('add_tag');
-        } else if ($this->get('add_tag')=='' && $this->get('add_tag_hidden')!='') {
-            $test_m = $this->findOrCreateTag($this->get('add_tag_hidden'));
-            $new_value = ($this->tags_list->get()=='')?$test_m->get('id'):$this->tags_list->get().'-'.$test_m->get('id');
-        } else {
-            $new_value = $this->tags_list->get();
-        }
-
-        $this->return_js[] = $this->js()->atk4_form('setFieldValue',$this->tags_list->short_name,$this->string_unique($new_value,'-'));
-        $this->return_js[] = $this->js()->atk4_form('setFieldValue',$this->tag_f->short_name.'_4','');
-        $this->return_js[] = $this->l->js()->trigger('reload');
-        $this->js(null,$this->return_js)->execute();
-    }
-    private function deleteHashtagSymbol($tag){
-        while(strpos($tag, '#') === 0) $tag = substr($tag, 1);
-        return $tag;
-    }
-    private function findOrCreateTag($tag) {
-        $test_m = $this->add('x_tags/Model_Tag');
-        $test_m->addCondition('value',$tag);
-        $test_m->tryLoadAny();
-        if (!$test_m->loaded()) {
-            $test_m
-                ->set('value',$tag)
-                ->set('user_id',$this->api->auth->model->id)
-            ->save();
-            //$this->return_js[] = $this->js()->univ()->successMessage('Tag was added to your personal set of tags');
-        }
-        return $test_m;
-    }
-    private function string_unique($str,$separator) {
-        /*
-         *  Just to avoid duplicated tags
-         */
-        return implode($separator,array_unique(explode($separator,$str)));
-    }
-    function render(){
-   		$this->js(true)
-   			->_load('x_tags')
-   			->_css('x_tags');
-
-   		return parent::render();
-   	}
-    function defaultTemplate() {
-		// add add-on locations to pathfinder
-		$l = $this->api->locate('addons',__NAMESPACE__,'location');
-		$addon_location = $this->api->locate('addons',__NAMESPACE__);
-		$this->api->pathfinder->addLocation($addon_location,array(
-			'js'=>'templates/js',
-			'css'=>'templates/css',
-            'template'=>'templates',
-		))->setParent($l);
-
-        return parent::defaultTemplate();
     }
 }
 
@@ -158,7 +180,7 @@ class Form_Field_createnew extends \autocomplete\Form_Field_Basic {
 	function init(){
 		parent::init();
         $name = preg_replace('/_id$/','',$this->short_name);
-        $this->other_hidden_field = $this->owner->addField('Hidden',$name.'_hidden');
+        $this->other_hidden_field = $this->owner->addField('Hidden','add_tag_hidden');
         $this->other_field->js('change',$this->other_hidden_field->js()->val($this->other_field->js()->val()));
         $this->owner->js('submit',$this->other_hidden_field->js()->val(''));
 	}
