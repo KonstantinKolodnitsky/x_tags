@@ -91,7 +91,8 @@ class Form_Tags extends \Form {
          *  All tags in database will be separated by comma,
          *  so we will not let users to use comma in tag name.
          */
-        $this->set('add_tag_hidden',str_replace(array(',',' '),array('',''),$this->get('add_tag_hidden')));
+        $tag = $this->deleteHashtagSymbol($this->get('add_tag_hidden'));
+        $this->set('add_tag_hidden',str_replace(array(',',' '),array('',''),$tag));
 
         $this->return_js = array();
         if ($this->get('add_tag')!='') {
@@ -107,6 +108,10 @@ class Form_Tags extends \Form {
         $this->return_js[] = $this->js()->atk4_form('setFieldValue',$this->tag_f->short_name.'_4','');
         $this->return_js[] = $this->l->js()->trigger('reload');
         $this->js(null,$this->return_js)->execute();
+    }
+    private function deleteHashtagSymbol($tag){
+        while(strpos($tag, '#') === 0) $tag = substr($tag, 1);
+        return $tag;
     }
     private function findOrCreateTag($tag) {
         $test_m = $this->add('x_tags/Model_Tag');
