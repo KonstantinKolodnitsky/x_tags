@@ -78,6 +78,7 @@ class Form_Tags extends \Form {
         return $tag;
     }
     private function findOrCreateTag($tag) {
+        if (trim($tag) == '') return false;
         $tag = substr($tag,0,20);
         $test_m = $this->add('x_tags/Model_Tag');
         $test_m->addCondition('value',$tag);
