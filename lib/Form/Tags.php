@@ -44,19 +44,23 @@ class Form_Tags extends \Form {
         // if tag was found in database by autocomplete field
         if ($this->get('add_tag')!='') {
             // put ids into hidden field
-            $new_value = $this->mergeIdsInHiddenField($this->get('add_tag'));
+            $new_tag_id = $this->get('add_tag');
         }
         // if tag was not found and we have new tag
         else if ($this->get('add_tag')=='' && $this->get('add_tag_hidden')!='') {
             // create new tag in DB
-            $test_m = $this->findOrCreateTag($this->get('add_tag_hidden'));
-            // put ids into hidden field
-            $new_value = $this->mergeIdsInHiddenField($test_m->get('id'));
+            if ($test_m = $this->findOrCreateTag($this->get('add_tag_hidden'))) {
+                $new_tag_id = $test_m->get('id');
+            } else {
+                $new_tag_id = '';
+            }
         }
         // we didn't get information from user so just return existing list of ids
         else {
-            $new_value = $this->mergeIdsInHiddenField();
+            $new_tag_id = '';
         }
+        // put ids into hidden field
+        $new_value = $this->mergeIdsInHiddenField($new_tag_id);
 
         $this->return_js[] = $this->js()->atk4_form('setFieldValue',$this->tags_list->short_name,$this->string_unique($new_value));
         $this->return_js[] = $this->js()->atk4_form('setFieldValue',$this->tag_f->short_name,'');
@@ -156,11 +160,12 @@ class Form_Tags extends \Form {
             $tag_id_arr = array();
             $count=0;
             foreach ($temp_tag_arr as $tag) {
-                $test_m = $this->findOrCreateTag($tag);
-                $tag_arr[$count]['id'] = $test_m->id;
-                $tag_arr[$count]['value'] = $tag;
-                $tag_id_arr[] = $test_m->id;
-                $count++;
+                if ($test_m = $this->findOrCreateTag($tag)) {
+                    $tag_arr[$count]['id'] = $test_m->id;
+                    $tag_arr[$count]['value'] = $tag;
+                    $tag_id_arr[] = $test_m->id;
+                    $count++;
+                }
             }
             $this->l->setSource($tag_arr,'value');
             $field->set(implode($this->separator,$tag_id_arr));
