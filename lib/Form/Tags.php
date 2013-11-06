@@ -35,7 +35,8 @@ class Form_Tags extends \Form {
          *  All tags in database will be separated by comma,
          *  so we will not let users to use comma in tag name.
          */
-        $tag = $this->deleteHashtagSymbol($this->get('add_tag_hidden'));
+        $tag = trim($this->get('add_tag_hidden'));
+        $tag = $this->deleteHashtagSymbol($tag);
         $this->set('add_tag_hidden',str_replace(array(',',' '),array('',''),$tag));
 
         $this->return_js = array();
