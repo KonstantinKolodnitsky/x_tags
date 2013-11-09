@@ -69,7 +69,7 @@ $.each({
         $('.main-tag-lister .' + form_id).each( function(i,el) {
             if (i==0) {comma = ''} else {comma = ','};
             field.val(
-                field.val() + comma + $(this).text()
+                field.val() + comma + $(this).text().substring(1)
             );
         })
     }
